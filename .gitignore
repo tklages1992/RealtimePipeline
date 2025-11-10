@@ -1,0 +1,17 @@
+﻿# Betriebssystem
+Thumbs.db
+.DS_Store
+
+# Python / venv (falls später genutzt)
+.venv/
+__pycache__/
+
+# Docker
+*.log
+
+# Lokale Konfiguration
+.env
+.env.*
+
+# Daten (nicht versionieren)
+data/
