@@ -1,0 +1,114 @@
+﻿services:
+  redpanda:
+    image: redpandadata/redpanda:v24.1.9
+    command:
+      - redpanda start
+      - --overprovisioned
+      - --smp 1
+      - --memory 1G
+      - --reserve-memory 0M
+      - --node-id 0
+      - --check=false
+      - --kafka-addr INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092
+      - --advertise-kafka-addr INTERNAL://redpanda:29092,EXTERNAL://localhost:9092
+    ports:
+      - "9092:9092"
+      - "9644:9644"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9644/v1/status/ready"]
+      interval: 5s
+      timeout: 2s
+      retries: 30
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.2
+    depends_on:
+      - redpanda
+    ports:
+      - "8080:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=redpanda:29092
+
+  postgres:
+    image: postgres:16
+    environment:
+      - POSTGRES_USER=app
+      - POSTGRES_PASSWORD=app
+      - POSTGRES_DB=telemetry
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
+
+  adminer:
+    image: adminer:4
+    depends_on:
+      - postgres
+    ports:
+      - "9090:8080"
+
+  flink-jobmanager:
+    image: flink:1.19-scala_2.12
+    depends_on:
+      - redpanda
+    command: jobmanager
+    ports:
+      - "8083:8081"   # geändert, um Portkonflikte zu vermeiden
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        state.checkpoints.dir: file:///flink-checkpoints
+        state.savepoints.dir: file:///flink-savepoints
+    volumes:
+      - flink_data:/flink-checkpoints
+      - flink_save:/flink-savepoints
+
+  flink-taskmanager:
+    image: flink:1.19-scala_2.12
+    depends_on:
+      - flink-jobmanager
+    command: taskmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: 2
+
+  producer:
+    build:
+      context: ./services/producer
+    depends_on:
+      - redpanda
+    environment:
+      - KAFKA_BROKERS=redpanda:29092
+      - TOPIC=telemetry.v0
+      - CSV_PATH=/data/sample.csv
+    volumes:
+      - ./data:/data
+
+  flink-job:
+    build:
+      context: ./services/flink_job
+    depends_on:
+      - redpanda
+      - postgres
+    environment:
+      - KAFKA_BROKERS=redpanda:29092
+      - TOPIC=telemetry.v0
+      - PGHOST=postgres
+      - PGDATABASE=telemetry
+      - PGUSER=app
+      - PGPASSWORD=app
+    volumes:
+      - ./services/flink_job/src:/app/src
+
+volumes:
+  redpanda_data:
+  pg_data:
+  flink_data:
+  flink_save:

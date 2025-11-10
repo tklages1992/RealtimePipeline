@@ -1,0 +1,6 @@
+﻿apache-flink==1.19.0
+psycopg2-binary==2.9.9
+kafka-python==2.0.2
+python-dateutil==2.9.0
+
+psycopg2-binary==2.9.9
