@@ -1,9 +1,8 @@
 # Realtime Data Pipeline – Kafka × Flink × PostgreSQL
 
-##
 Ziel des Projekts ist der Aufbau einer containerisierten **Echtzeit-Datenpipeline**, die Rohdaten aus einer CSV-Datei liest, über Apache Kafka (Redpanda) streamt, in **Flink** verarbeitet und aggregierte Ergebnisse in **PostgreSQL** speichert.  
 Das System ist vollständig lokal mit **Docker Compose** lauffähig.
----
+
 
 ##  Systemarchitektur
 
